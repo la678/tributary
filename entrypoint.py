@@ -15,25 +15,55 @@ app = Flask(__name__)
 @app.route('/record', methods=['POST'])
 def record_engine_temperature():
     # every time the /record endpoint is called, the code in this block is executed
-    payload = request.get_json(force=True)
-    logger.info(f"(*) record request --- {json.dumps(payload)} (*)")
+    # payload = request.get_json(force=True)
+    # logger.info(f"(*) record request --- {json.dumps(payload)} (*)")
+    #
+    # engine_temperature = payload.get("engine_temperature")
+    # logger.info(f"engine temperature to record is: {engine_temperature}")
+    #
+    # database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
+    # database.lpush(DATA_KEY, engine_temperature)
+    # logger.info(f"stashed engine temperature in redis: {engine_temperature}")
+    #
+    # while database.llen(DATA_KEY) > HISTORY_LENGTH:
+    #     database.rpop(DATA_KEY)
+    # engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
+    # logger.info(f"engine temperature list now contains these values: {engine_temperature_values}")
+    #
+    # logger.info(f"record request successful")
+    #
+    # # return a json payload, and a 200 status code to the client
+    # return {"success": True}, 200
 
-    engine_temperature = payload.get("engine_temperature")
-    logger.info(f"engine temperature to record is: {engine_temperature}")
+    try:
+        payload = request.get_json(force=True)
+        logger.info(f"(*) record request --- {json.dumps(payload)} (*)")
 
-    database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
-    database.lpush(DATA_KEY, engine_temperature)
-    logger.info(f"stashed engine temperature in redis: {engine_temperature}")
+        engine_temperature = payload.get("engine_temperature")
+        if engine_temperature is None:
+            return jsonify({"error": "Missing engine_temperature in payload"}), 400
 
-    while database.llen(DATA_KEY) > HISTORY_LENGTH:
-        database.rpop(DATA_KEY)
-    engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
-    logger.info(f"engine temperature list now contains these values: {engine_temperature_values}")
+        logger.info(f"engine temperature to record is: {engine_temperature}")
 
-    logger.info(f"record request successful")
+        try:
+            database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
+            database.lpush(DATA_KEY, engine_temperature)
+            logger.info(f"stashed engine temperature in redis: {engine_temperature}")
 
-    # return a json payload, and a 200 status code to the client
-    return {"success": True}, 200
+            while database.llen(DATA_KEY) > HISTORY_LENGTH:
+                database.rpop(DATA_KEY)
+            engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
+            logger.info(f"engine temperature list now contains these values: {engine_temperature_values}")
+        except redis.RedisError as e:
+            logger.error(f"Redis error: {str(e)}")
+            return jsonify({"error": "Database error"}), 500
+
+        logger.info("record request successful")
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # practically identical to the above
 @app.route('/collect', methods=['POST'])
