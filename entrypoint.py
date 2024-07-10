@@ -28,7 +28,7 @@ def record_engine_temperature():
 
         try:
             database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
-            database.lpush(DATA_KEY, engine_temperature)
+            database.lpush(DATA_KEY, float(engine_temperature))
             logger.info(f"stashed engine temperature in redis: {engine_temperature}")
 
             while database.llen(DATA_KEY) > HISTORY_LENGTH:
@@ -49,4 +49,19 @@ def record_engine_temperature():
 # practically identical to the above
 @app.route('/collect', methods=['GET'])
 def collect_engine_temperature():
-    return {"success": True}, 200
+    try:
+        database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
+        current_engine_temperature = database.rpop(DATA_KEY)
+        engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
+        sum_engine_temperature_values = 0.0
+        if len(engine_temperature_values):
+            for i in engine_temperature_values:
+                sum_engine_temperature_values = sum_engine_temperature_values + float(i)
+                average_engine_temperature = sum_engine_temperature_values/len(engine_temperature_values)
+            return {"current_engine_temperature": current_engine_temperature,
+                "average_engine_temperature": average_engine_temperature}
+        else:
+            return jsonify({"error": "no engine temperature values found"})
+    except redis.RedisError as e:
+        logger.error(f"Redis error: {str(e)}")
+        return jsonify({"error": "Database error"}), 500
