@@ -51,8 +51,8 @@ def record_engine_temperature():
 def collect_engine_temperature():
     try:
         database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
-        current_engine_temperature = database.rpop(DATA_KEY)
         engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
+        current_engine_temperature = engine_temperature_values[0]
         sum_engine_temperature_values = 0.0
         if len(engine_temperature_values):
             for i in engine_temperature_values:
