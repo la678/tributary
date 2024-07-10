@@ -1,6 +1,8 @@
-import requests
+import requests as requests
 
-response = requests.post("http://127.0.0.1:8000/record", json={"engine_temperature": 0.3})
+data = {
+    "engine_temperature": 0.12,
+}
 
-print(response.status_code)
-print(response.text)
+response = requests.post('http://127.0.0.1:8000/record', json=data)
+print(response.content)
