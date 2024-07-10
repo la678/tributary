@@ -5,7 +5,12 @@ services:
     build: .
     ports:
       - "8000:8000"
-
+    command: gunicorn --bind 0.0.0.0:8000 entrypoint:app  # Add this line
+    environment: # Add this section
+      - FLASK_ENV=development
+      - REDIS_HOST=redis
+    depends_on: # Add this section
+      - redis
   redis:
     image: redis
     ports:
